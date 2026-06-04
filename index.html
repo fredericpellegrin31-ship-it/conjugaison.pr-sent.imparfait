@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Galaxie Conjugaison - Présent & Imparfait</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050a14;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none; 
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        canvas {
+            display: block;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .hud-top {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .score-box {
+            background: rgba(10, 25, 50, 0.8);
+            padding: 8px 15px;
+            border-radius: 12px;
+            border: 2px solid #3b82f6;
+            color: white;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        /* Barre de temps - Déplacée */
+        .timer-container {
+            position: absolute;
+            top: 140px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            max-width: 400px;
+            height: 14px;
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: 10px;
+            border: 2px solid #64748b;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        #timer-bar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #22c55e, #86efac);
+            transition: width 1s linear;
+        }
+
+        #question-display {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.9);
+            border: 3px solid #fbbf24;
+            padding: 5px 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 0 25px rgba(251, 191, 36, 0.4);
+            pointer-events: auto;
+            min-width: 320px;
+        }
+        #question-text {
+            font-size: 0.9rem;
+            color: #93c5fd;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        #question-math {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: #ffffff;
+            line-height: 1.2;
+            text-shadow: 2px 2px 0px #000;
+            white-space: nowrap;
+        }
+
+        /* Bouton de tir (Mobile) */
+        #shoot-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 90px;
+            height: 90px;
+            background: rgba(59, 130, 246, 0.6);
+            border: 4px solid #60a5fa;
+            border-radius: 50%;
+            color: white;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+            font-size: 1.2rem;
+        }
+        #shoot-btn:active { background: #2563eb; transform: scale(0.95); }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 10, 20, 0.96);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            pointer-events: auto;
+            text-align: center;
+            padding: 20px;
+        }
+        .hidden { display: none !important; }
+        
+        .btn-main {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 1.5rem;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            margin: 15px;
+            transition: transform 0.1s;
+        }
+        .btn-main:active { transform: scale(0.95); }
+
+        select {
+            background: #1e293b;
+            color: white;
+            border: 2px solid #3b82f6;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            outline: none;
+            cursor: pointer;
+        }
+        
+        /* Feedback visuel */
+        #feedback-msg {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.5rem; 
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 0 0 20px rgba(0,0,0,0.8);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 20;
+            width: 90%;
+        }
+        .text-green { color: #4ade80; }
+        .text-red { color: #ef4444; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div class="score-box">
+                <span class="text-xs text-blue-300">SCORE</span>
+                <span id="score" class="text-2xl">0</span>
+            </div>
+            <div class="score-box" style="align-items: flex-end;">
+                <span class="text-xs text-red-300">VIES</span>
+                <span id="lives" class="text-2xl text-red-400">❤️❤️❤️❤️❤️</span>
+            </div>
+        </div>
+
+        <div id="question-display" class="hidden">
+            <div id="question-text">Conjugue au temps demandé :</div>
+            <div id="question-math">Je (manger) = ?</div>
+        </div>
+
+        <div class="timer-container hidden" id="timer-container">
+            <div id="timer-bar"></div>
+        </div>
+
+        <div id="feedback-msg"></div>
+
+        <div id="touch-controls" class="hidden">
+            <div id="shoot-btn">FEU</div>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <h1 id="overlay-title" class="text-6xl font-black text-white mb-2 italic uppercase text-center tracking-tighter" 
+            style="text-shadow: 0 0 30px #2563eb;">
+            GALAXIE<br><span class="text-yellow-400">CONJUGAISON</span>
+        </h1>
+        <p id="overlay-msg" class="text-blue-200 mb-8 text-xl max-w-md mx-auto">
+            Pilote le vaisseau bleu.<br>
+            Trouve la bonne <b class="text-green-400">forme conjuguée</b>.<br>
+            Tire sur les astéroïdes et les ennemis !
+        </p>
+        
+        <div class="flex flex-col items-center w-full max-w-sm">
+            <label for="difficulty" class="text-blue-300 mb-2 font-bold">Sélectionne ta mission</label>
+            <select id="difficulty" class="w-full text-center">
+                <option value="present">Présent de l'indicatif</option>
+                <option value="imparfait">L'imparfait</option>
+            </select>
+            <button id="start-btn" class="btn-main">DÉCOLLAGE 🚀</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let gameState = 'START';
+        let score = 0;
+        let lives = 5;
+        let currentQuestion = { text: "Je (manger)", ans: "mange", verb: "manger", pronoun: "Je", tense: "present" };
+        let questionActive = false;
+        let selectedTense = 'present'; // 'present' ou 'imparfait'
+        
+        let gameTimeTotal = 120;
+        let gameTimeLeft = 120;
+        let timerInterval;
+
+        const PLAYER_W = 60, PLAYER_H = 50;
+        
+        const ASSETS = {
+            ship: 'playerShip2_blue.png',
+            laserPlayer: 'laserBlue13.png',
+            laserEnemy: 'laserRed13.png',
+            meteors: ['meteorBrown_big1.png', 'meteorBrown_big2.png', 'meteorBrown_big3.png'],
+            enemies: ['enemyBlack1.png', 'enemyBlack2.png', 'enemyBlack3.png', 'enemyBlack4.png', 'enemyBlack5.png']
+        };
+
+        const images = {};
+        let assetsLoaded = 0;
+        
+        function loadImages() {
+            const load = (name, src) => {
+                const img = new Image();
+                img.src = src;
+                img.onload = () => assetsLoaded++;
+                images[name] = img;
+            };
+
+            load('ship', ASSETS.ship);
+            load('laserPlayer', ASSETS.laserPlayer);
+            load('laserEnemy', ASSETS.laserEnemy);
+            ASSETS.meteors.forEach((src, i) => load(`meteor${i}`, src));
+            ASSETS.enemies.forEach((src, i) => load(`enemy${i}`, src));
+        }
+        loadImages();
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'shoot') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'hit') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(50, now + 0.2);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'explosion') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.exponentialRampToValueAtTime(10, now + 0.4);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                osc.start(now); osc.stop(now + 0.4);
+            } else if (type === 'correct') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.setValueAtTime(600, now + 0.1);
+                osc.frequency.setValueAtTime(800, now + 0.2);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                osc.start(now); osc.stop(now + 0.4);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+            }
+        }
+
+        let ship = { x: 0, y: 0, w: PLAYER_W, h: PLAYER_H, speed: 8 };
+        let playerLasers = [];
+        let enemyLasers = [];
+        let meteors = [];
+        let enemies = [];
+        let hearts = [];
+        let answerBoxes = [];
+        let particles = [];
+        let stars = [];
+        let floatingTexts = [];
+
+        // Banque de verbes et conjugaisons pour générer les questions
+        const VERB_DATABASE = {
+            manger: {
+                group: 1,
+                present: ["mange", "manges", "mange", "mangeons", "mangez", "mangent"],
+                imparfait: ["mangeais", "mangeais", "mangeait", "mangiions", "mangiez", "mangeaient"]
+            },
+            finir: {
+                group: 2,
+                present: ["finis", "finis", "finit", "finissons", "finissez", "finissent"],
+                imparfait: ["finissais", "finissais", "finissait", "finissions", "finissiez", "finissaient"]
+            },
+            aimer: {
+                group: 1,
+                present: ["aime", "aimes", "aime", "aimons", "aimez", "aiment"],
+                imparfait: ["aimais", "aimais", "aimait", "aimions", "aimiez", "aimaient"]
+            },
+            choisir: {
+                group: 2,
+                present: ["choisis", "choisis", "choisit", "choisissons", "choisissez", "choisissent"],
+                imparfait: ["choisissais", "choisissais", "choisissait", "choisissions", "choisissiez", "choisissaient"]
+            },
+            aller: {
+                group: 3,
+                present: ["vais", "vas", "va", "allons", "allez", "vont"],
+                imparfait: ["allais", "allais", "allait", "allions", "alliez", "allaient"]
+            },
+            faire: {
+                group: 3,
+                present: ["fais", "fais", "fait", "faisons", "faites", "font"],
+                imparfait: ["faisais", "faisais", "faisait", "faisions", "faisiez", "faisaient"]
+            },
+            dire: {
+                group: 3,
+                present: ["dis", "dis", "dit", "disons", "dites", "disent"],
+                imparfait: ["disais", "disais", "disait", "disions", "disiez", "disaient"]
+            },
+            prendre: {
+                group: 3,
+                present: ["prends", "prends", "prend", "prenons", "prenez", "prennent"],
+                imparfait: ["prenais", "prenais", "prenait", "prenions", "preniez", "prenaient"]
+            },
+            venir: {
+                group: 3,
+                present: ["viens", "viens", "vient", "venons", "venez", "viennent"],
+                imparfait: ["venais", "venais", "venait", "venions", "veniez", "venaient"]
+            },
+            voir: {
+                group: 3,
+                present: ["vois", "vois", "voit", "voyons", "voyez", "voient"],
+                imparfait: ["voyais", "voyais", "voyait", "voyions", "voyiez", "voyaient"]
+            },
+            vouloir: {
+                group: 3,
+                present: ["veux", "veux", "veut", "voulons", "voulez", "veulent"],
+                imparfait: ["voulais", "voulais", "voulait", "voulions", "vouliez", "voulaient"]
+            },
+            pouvoir: {
+                group: 3,
+                present: ["peux", "peux", "peut", "poulons", "pouvez", "peuvent"],
+                imparfait: ["pouvais", "pouvais", "pouvait", "pouvions", "pouviez", "pouvaient"]
+            },
+            partir: {
+                group: 3,
+                present: ["pars", "pars", "part", "partons", "partez", "partent"],
+                imparfait: ["partais", "partais", "partait", "partions", "partiez", "partaient"]
+            },
+            être: {
+                group: 3,
+                present: ["suis", "es", "est", "sommes", "êtes", "sont"],
+                imparfait: ["étais", "étais", "était", "étions", "étiez", "étaient"]
+            },
+            avoir: {
+                group: 3,
+                present: ["ai", "as", "a", "avons", "avez", "ont"],
+                imparfait: ["avais", "avais", "avait", "avions", "aviez", "avaient"]
+            }
+        };
+
+        const PRONOUNS = [
+            { text: "Je", index: 0 },
+            { text: "Tu", index: 1 },
+            { text: "Il / Elle", index: 2 },
+            { text: "Nous", index: 3 },
+            { text: "Vous", index: 4 },
+            { text: "Ils / Elles", index: 5 }
+        ];
+
+        const overlay = document.getElementById('overlay');
+        const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
+        const questionDisplay = document.getElementById('question-display');
+        const questionMath = document.getElementById('question-math');
+        const feedbackMsg = document.getElementById('feedback-msg');
+        const shootBtn = document.getElementById('shoot-btn');
+        const touchControls = document.getElementById('touch-controls');
+        const timerContainer = document.getElementById('timer-container');
+        const timerBar = document.getElementById('timer-bar');
+
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.code] = true);
+        window.addEventListener('keyup', e => keys[e.code] = false);
+        window.addEventListener('keydown', e => { if(e.code === 'Space') firePlayerLaser(); });
+
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); updateShipTouch(e.touches[0]); });
+        canvas.addEventListener('touchmove', e => { e.preventDefault(); updateShipTouch(e.touches[0]); });
+        
+        shootBtn.addEventListener('touchstart', e => { e.preventDefault(); firePlayerLaser(); });
+        shootBtn.addEventListener('mousedown', e => { e.preventDefault(); firePlayerLaser(); });
+
+        function updateShipTouch(touch) {
+            ship.x = touch.clientX - ship.w / 2;
+            ship.y = touch.clientY - ship.h - 80; 
+        }
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            ship.x = canvas.width/2 - ship.w/2;
+            ship.y = canvas.height - 150;
+            initStars();
+        }
+        window.onresize = resize;
+
+        function initStars() {
+            stars = [];
+            for(let i=0; i<100; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2,
+                    speed: Math.random() * 2 + 0.5
+                });
+            }
+        }
+
+        function spawnFloatingText(x, y, text, color) {
+            floatingTexts.push({
+                x: x, y: y,
+                text: text,
+                color: color,
+                life: 1.0,
+                vy: -1 
+            });
+        }
+
+        // Générateur de questions de conjugaison
+        function generateQuestion() {
+            questionActive = true;
+            
+            // Sélection d'un verbe et d'un pronom au hasard
+            const verbKeys = Object.keys(VERB_DATABASE);
+            const randomVerbKey = verbKeys[Math.floor(Math.random() * verbKeys.length)];
+            const verbData = VERB_DATABASE[randomVerbKey];
+            
+            const pronounObj = PRONOUNS[Math.floor(Math.random() * PRONOUNS.length)];
+            
+            // Récupération de la bonne réponse correspondante
+            const correctConjugation = verbData[selectedTense][pronounObj.index];
+            
+            // Formater l'affichage de la question selon le pronom et le verbe
+            // Gestion de l'élision (J' / Je)
+            let displayPronoun = pronounObj.text;
+            if (pronounObj.index === 0) {
+                const vowels = ['a', 'e', 'i', 'o', 'u', 'y', 'é', 'ê', 'â', 'î', 'ô', 'û'];
+                if (vowels.includes(randomVerbKey.charAt(0))) {
+                    displayPronoun = "J'";
+                }
+            }
+
+            const formattedQuestionText = `${displayPronoun} (${randomVerbKey}) = ?`;
+            
+            currentQuestion = { 
+                text: formattedQuestionText, 
+                ans: correctConjugation, 
+                verb: randomVerbKey, 
+                pronoun: displayPronoun, 
+                tense: selectedTense 
+            };
+
+            const tenseLabel = selectedTense === 'present' ? "Présent" : "Imparfait";
+            document.getElementById('question-text').innerText = `Conjugue au ${tenseLabel} :`;
+            questionMath.innerText = formattedQuestionText;
+
+            spawnAnswerBoxes();
+        }
+
+        // Création des blocs de propositions (astéroïdes de réponses)
+        function spawnAnswerBoxes() {
+            answerBoxes = [];
+            let answers = [currentQuestion.ans];
+            const verbData = VERB_DATABASE[currentQuestion.verb];
+            const allTenseConjugations = verbData[selectedTense];
+            
+            // 1. Ajouter d'autres conjugaisons du même verbe pour le même temps (distracteurs)
+            allTenseConjugations.forEach(conj => {
+                if (conj !== currentQuestion.ans && !answers.includes(conj)) {
+                    answers.push(conj);
+                }
+            });
+
+            // 2. Si on a besoin de plus de distracteurs ou de pièges types (par exemple terminaisons erronées)
+            const commonErrors = {
+                present: ["er", "é", "ez", "es", "ent", "is", "it", "ais", "ait"],
+                imparfait: ["ai", "as", "ait", "ais", "iez", "ions", "aient", "at"]
+            };
+
+            const verbBase = currentQuestion.verb.slice(0, -2); // Base approximative pour verbe du 1er groupe
+            
+            while (answers.length < 4) {
+                // Essayer de fabriquer des pièges plausibles
+                let fakeAnswer = "";
+                const randomEnding = commonErrors[selectedTense][Math.floor(Math.random() * commonErrors[selectedTense].length)];
+                
+                if (currentQuestion.verb === "être") {
+                    const fakesEtre = ["étés", "étais", "êtes", "suisons", "somme"];
+                    fakeAnswer = fakesEtre[Math.floor(Math.random() * fakesEtre.length)];
+                } else if (currentQuestion.verb === "avoir") {
+                    const fakesAvoir = ["avons", "avez", "avé", "avait", "as", "ont", "aurent"];
+                    fakeAnswer = fakesAvoir[Math.floor(Math.random() * fakesAvoir.length)];
+                } else {
+                    fakeAnswer = verbBase + randomEnding;
+                }
+
+                if (fakeAnswer && !answers.includes(fakeAnswer) && fakeAnswer !== currentQuestion.ans) {
+                    answers.push(fakeAnswer);
+                } else {
+                    // Fallback sur une autre conjugaison d'un autre verbe
+                    const otherVerbKeys = Object.keys(VERB_DATABASE).filter(k => k !== currentQuestion.verb);
+                    const randomOtherVerb = VERB_DATABASE[otherVerbKeys[Math.floor(Math.random() * otherVerbKeys.length)]];
+                    const backupFake = randomOtherVerb[selectedTense][Math.floor(Math.random() * 6)];
+                    if (!answers.includes(backupFake)) {
+                        answers.push(backupFake);
+                    }
+                }
+            }
+
+            // Garder seulement 4 réponses uniques et mélanger
+            answers = answers.slice(0, 4);
+            answers.sort(() => Math.random() - 0.5);
+
+            const zoneWidth = canvas.width / 4;
+            for (let i = 0; i < 4; i++) {
+                // On adapte la largeur de la boîte de réponse selon la longueur du mot pour que ce soit lisible
+                const boxW = Math.max(100, answers[i].length * 15);
+                answerBoxes.push({
+                    x: i * zoneWidth + (zoneWidth - boxW) / 2, 
+                    y: -150,
+                    w: boxW,
+                    h: 70,
+                    val: answers[i],
+                    color: `hsla(${Math.random() * 360}, 70%, 60%, 0.5)`,
+                    speed: 0.7 // Un peu plus lent pour que l'élève ait le temps de lire le mot complexe
+                });
+            }
+        }
+
+        function spawnMeteor() {
+            if (gameState !== 'PLAYING') return;
+            const size = 40 + Math.random() * 60;
+            const imgIndex = Math.floor(Math.random() * ASSETS.meteors.length);
+            meteors.push({
+                x: Math.random() * (canvas.width - size),
+                y: -100,
+                w: size,
+                h: size,
+                imgKey: `meteor${imgIndex}`,
+                speed: 2 + Math.random() * 2,
+                angle: 0,
+                rotSpeed: (Math.random() - 0.5) * 0.1,
+                hp: 1 
+            });
+            setTimeout(spawnMeteor, 2200);
+        }
+
+        function spawnEnemy() {
+            if (gameState !== 'PLAYING') return;
+            const imgIndex = Math.floor(Math.random() * ASSETS.enemies.length);
+            const moveType = Math.random() > 0.5 ? 'sine' : 'straight';
+            
+            enemies.push({
+                x: Math.random() * (canvas.width - 60),
+                y: -80,
+                w: 60,
+                h: 60,
+                imgKey: `enemy${imgIndex}`,
+                speed: 2 + Math.random(),
+                moveType: moveType,
+                startX: 0, 
+                time: 0,
+                hp: 1,
+                lastShot: Date.now()
+            });
+            enemies[enemies.length-1].startX = enemies[enemies.length-1].x;
+            
+            setTimeout(spawnEnemy, 3200);
+        }
+
+        function spawnHeart() {
+            if (gameState !== 'PLAYING') return;
+            if (Math.random() < 0.4) {
+                hearts.push({
+                    x: Math.random() * (canvas.width - 40),
+                    y: -50,
+                    size: 30,
+                    speed: 3
+                });
+            }
+            setTimeout(spawnHeart, 12000);
+        }
+
+        function firePlayerLaser() {
+            if (gameState !== 'PLAYING') return;
+            playerLasers.push({ x: ship.x + ship.w/2 - 4.5, y: ship.y, w: 9, h: 37 });
+            playSound('shoot');
+        }
+
+        function enemyShoot(enemy) {
+            enemyLasers.push({ x: enemy.x + enemy.w/2 - 4.5, y: enemy.y + enemy.h, w: 9, h: 37 });
+        }
+
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            if (keys['ArrowLeft']) ship.x -= ship.speed;
+            if (keys['ArrowRight']) ship.x += ship.speed;
+            if (keys['ArrowUp']) ship.y -= ship.speed;
+            if (keys['ArrowDown']) ship.y += ship.speed;
+
+            if (ship.x < 0) ship.x = 0;
+            if (ship.x > canvas.width - ship.w) ship.x = canvas.width - ship.w;
+            if (ship.y < 0) ship.y = 0;
+            if (ship.y > canvas.height - ship.h) ship.y = canvas.height - ship.h;
+
+            stars.forEach(s => {
+                s.y += s.speed;
+                if(s.y > canvas.height) { s.y = 0; s.x = Math.random() * canvas.width; }
+            });
+
+            // Lasers Joueur
+            for (let i = playerLasers.length - 1; i >= 0; i--) {
+                const l = playerLasers[i];
+                l.y -= 12;
+                if (l.y < -50) { playerLasers.splice(i, 1); continue; }
+
+                let hitEnemy = false;
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const e = enemies[j];
+                    if (rectIntersect(l, e)) {
+                        createExplosion(e.x + e.w/2, e.y + e.h/2, '#ef4444');
+                        enemies.splice(j, 1);
+                        playerLasers.splice(i, 1);
+                        score += 10;
+                        spawnFloatingText(e.x + e.w/2, e.y, "+10", "#4ade80");
+                        hitEnemy = true;
+                        playSound('explosion'); 
+                        break;
+                    }
+                }
+                if (hitEnemy) continue;
+
+                for (let j = meteors.length - 1; j >= 0; j--) {
+                    const m = meteors[j];
+                    if (rectIntersect(l, m)) {
+                        m.hp--;
+                        playerLasers.splice(i, 1);
+                        if (m.hp <= 0) {
+                            createExplosion(m.x + m.w/2, m.y + m.h/2, '#a8a29e');
+                            meteors.splice(j, 1);
+                            score += 5;
+                            spawnFloatingText(m.x + m.w/2, m.y, "+5", "#4ade80");
+                            playSound('explosion');
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Lasers Ennemis
+            for (let i = enemyLasers.length - 1; i >= 0; i--) {
+                const l = enemyLasers[i];
+                l.y += 8;
+                if (l.y > canvas.height) { enemyLasers.splice(i, 1); continue; }
+                
+                if (rectIntersect(l, ship)) {
+                    takeDamage();
+                    enemyLasers.splice(i, 1);
+                }
+            }
+
+            // Ennemis
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                e.y += e.speed;
+                
+                if (e.moveType === 'sine') {
+                    e.time += 0.05;
+                    e.x = e.startX + Math.sin(e.time) * 100;
+                }
+
+                if (Date.now() - e.lastShot > 1500 && Math.random() < 0.02) {
+                    enemyShoot(e);
+                    e.lastShot = Date.now();
+                }
+
+                if (e.y > canvas.height) enemies.splice(i, 1);
+                else if (rectIntersect(e, ship)) {
+                    takeDamage();
+                    createExplosion(e.x + e.w/2, e.y + e.h/2, '#ef4444');
+                    enemies.splice(i, 1);
+                }
+            }
+
+            // Météores
+            for (let i = meteors.length - 1; i >= 0; i--) {
+                const m = meteors[i];
+                m.y += m.speed;
+                m.angle += m.rotSpeed;
+
+                if (m.y > canvas.height) meteors.splice(i, 1);
+                else if (rectIntersect(m, ship)) {
+                    takeDamage();
+                    createExplosion(m.x + m.w/2, m.y + m.h/2, '#a8a29e');
+                    meteors.splice(i, 1);
+                }
+            }
+
+            // Cœurs
+            for (let i = hearts.length - 1; i >= 0; i--) {
+                const h = hearts[i];
+                h.y += h.speed;
+                if (ship.x < h.x + h.size && ship.x + ship.w > h.x &&
+                    ship.y < h.y + h.size && ship.y + ship.h > h.y) {
+                    lives = Math.min(lives + 1, 8); 
+                    updateLivesUI();
+                    playSound('correct'); 
+                    hearts.splice(i, 1);
+                } else if (h.y > canvas.height) {
+                    hearts.splice(i, 1);
+                }
+            }
+
+            // Boites de Réponse
+            let correctBoxStillVisible = false;
+
+            for (let i = answerBoxes.length - 1; i >= 0; i--) {
+                const box = answerBoxes[i];
+                box.y += box.speed;
+
+                // Check si c'est la bonne réponse et si elle est toujours à l'écran
+                if (box.val === currentQuestion.ans && box.y < canvas.height) {
+                    correctBoxStillVisible = true;
+                }
+
+                if (rectIntersect(ship, box)) {
+                    if (box.val === currentQuestion.ans) {
+                        // BONNE RÉPONSE
+                        score += 50;
+                        playSound('correct');
+                        showFeedback("EXCELLENT !", "green");
+                        createExplosion(box.x + box.w/2, box.y + box.h/2, '#4ade80');
+                        spawnFloatingText(box.x + box.w/2, box.y, "+50", "#4ade80");
+                        answerBoxes = []; // Fin de la question
+                        questionActive = false;
+                        setTimeout(generateQuestion, 1200); // Petit délai
+                        break; 
+                    } else {
+                        // MAUVAISE RÉPONSE
+                        score = Math.max(0, score - 25); 
+                        playSound('wrong');
+                        takeDamage(false); 
+                        
+                        // Afficher la correction (gestion de l'apostrophe)
+                        let textCorrection = `Raté ! C'était : ${currentQuestion.pronoun} ${currentQuestion.ans}`;
+                        if (currentQuestion.pronoun === "J'") {
+                            textCorrection = `Raté ! C'était : J'${currentQuestion.ans}`;
+                        }
+                        showFeedback(textCorrection, "green"); 
+
+                        spawnFloatingText(box.x + box.w/2, box.y, "-25", "#ef4444");
+                        answerBoxes = []; // Empêche de choisir autre chose
+                        questionActive = false;
+                        setTimeout(generateQuestion, 2500); // Plus de temps pour lire la correction
+                        break;
+                    }
+                }
+            }
+
+            // Gestion "Pas de réponse choisie" (si tout est sorti de l'écran)
+            if (questionActive && !correctBoxStillVisible && answerBoxes.length > 0) {
+                 let visibleBoxes = answerBoxes.filter(b => b.y < canvas.height);
+                 if (visibleBoxes.length === 0) {
+                    let textCorrection = `Manqué ! Réponse : ${currentQuestion.pronoun} ${currentQuestion.ans}`;
+                    if (currentQuestion.pronoun === "J'") {
+                        textCorrection = `Manqué ! Réponse : J'${currentQuestion.ans}`;
+                    }
+                    showFeedback(textCorrection, "green");
+                    answerBoxes = [];
+                    questionActive = false;
+                    setTimeout(generateQuestion, 2500);
+                 }
+            } else if (questionActive && answerBoxes.length === 0) {
+                questionActive = false;
+                generateQuestion();
+            }
+
+            scoreEl.textContent = score;
+
+            particles.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy; p.life -= 0.05;
+                if(p.life <= 0) particles.splice(i, 1);
+            });
+
+            // Update Textes flottants
+            floatingTexts.forEach((t, i) => {
+                t.y += t.vy;
+                t.life -= 0.02;
+                if(t.life <= 0) floatingTexts.splice(i, 1);
+            });
+        }
+
+        function rectIntersect(r1, r2) {
+            return !(r2.x > r1.x + r1.w || 
+                     r2.x + r2.w < r1.x || 
+                     r2.y > r1.y + r1.h || 
+                     r2.y + r2.h < r1.y);
+        }
+
+        function takeDamage(fullExplosion = true) {
+            lives--;
+            updateLivesUI();
+            playSound('hit');
+            if (fullExplosion) createExplosion(ship.x + ship.w/2, ship.y + ship.h/2, '#3b82f6');
+            
+            if (lives <= 0) {
+                endGame("VAISSEAU DÉTRUIT");
+            }
+        }
+
+        function updateLivesUI() {
+            let str = "";
+            for(let i=0; i<lives; i++) str += "❤️";
+            livesEl.textContent = str;
+        }
+
+        function showFeedback(text, colorClass) {
+            feedbackMsg.innerText = text;
+            feedbackMsg.className = (colorClass === 'green') ? 'text-green' : 'text-red';
+            feedbackMsg.style.opacity = 1;
+            setTimeout(() => {
+                feedbackMsg.style.opacity = 0;
+            }, 2300);
+        }
+
+        function createExplosion(x, y, color) {
+            for(let i=0; i<15; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 1.0,
+                    color: color
+                });
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = '#050a14';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = 'white';
+            stars.forEach(s => {
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI*2);
+                ctx.fill();
+            });
+
+            if (gameState === 'PLAYING') {
+                meteors.forEach(m => {
+                    ctx.save();
+                    ctx.translate(m.x + m.w/2, m.y + m.h/2);
+                    ctx.rotate(m.angle);
+                    if(images[m.imgKey]) ctx.drawImage(images[m.imgKey], -m.w/2, -m.h/2, m.w, m.h);
+                    ctx.restore();
+                });
+
+                enemies.forEach(e => {
+                    if(images[e.imgKey]) ctx.drawImage(images[e.imgKey], e.x, e.y, e.w, e.h);
+                });
+
+                enemyLasers.forEach(l => {
+                    if(images['laserEnemy']) ctx.drawImage(images['laserEnemy'], l.x, l.y, l.w, l.h);
+                    else { ctx.fillStyle='red'; ctx.fillRect(l.x, l.y, l.w, l.h); }
+                });
+
+                playerLasers.forEach(l => {
+                    if(images['laserPlayer']) ctx.drawImage(images['laserPlayer'], l.x, l.y, l.w, l.h);
+                    else { ctx.fillStyle='blue'; ctx.fillRect(l.x, l.y, l.w, l.h); }
+                });
+
+                hearts.forEach(h => {
+                    drawHeartPath(h.x, h.y, h.size);
+                });
+
+                if(images['ship']) ctx.drawImage(images['ship'], ship.x, ship.y, ship.w, ship.h);
+
+                answerBoxes.forEach(box => {
+                    ctx.fillStyle = box.color;
+                    ctx.globalAlpha = 0.6; 
+                    
+                    roundRect(ctx, box.x, box.y, box.w, box.h, 10, true, true);
+                    
+                    ctx.globalAlpha = 1.0; 
+                    
+                    ctx.strokeStyle = "white";
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 26px Arial"; // Légèrement plus petit pour que les mots longs rentrent
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.shadowColor = "black";
+                    ctx.shadowBlur = 4;
+                    ctx.fillText(box.val, box.x + box.w/2, box.y + box.h/2);
+                    ctx.shadowBlur = 0;
+                });
+
+                particles.forEach(p => {
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+                    ctx.globalAlpha = 1.0;
+                });
+
+                // Dessiner les textes flottants
+                floatingTexts.forEach(t => {
+                    ctx.globalAlpha = t.life;
+                    ctx.fillStyle = t.color;
+                    ctx.font = "bold 28px Arial";
+                    ctx.textAlign = "center";
+                    ctx.lineWidth = 3;
+                    ctx.strokeText(t.text, t.x, t.y);
+                    ctx.fillText(t.text, t.x, t.y);
+                    ctx.globalAlpha = 1.0;
+                });
+            }
+
+            requestAnimationFrame(() => { update(); draw(); });
+        }
+
+        function drawHeartPath(x, y, size) {
+            ctx.save();
+            ctx.translate(x + size/2, y + size/2); 
+            const s = size / 30;
+            ctx.scale(s, s);
+            ctx.beginPath();
+            ctx.fillStyle = "#ec4899";
+            ctx.moveTo(0, 0);
+            ctx.bezierCurveTo(-10, -15, -25, -15, -25, 0);
+            ctx.bezierCurveTo(-25, 15, -10, 25, 0, 40);
+            ctx.bezierCurveTo(10, 25, 25, 15, 25, 0);
+            ctx.bezierCurveTo(25, -15, 10, -15, 0, 0);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+            if (fill) ctx.fill();
+            if (stroke) ctx.stroke();
+        }
+
+        function startGame() {
+            score = 0;
+            lives = 5;
+            enemies = [];
+            meteors = [];
+            playerLasers = [];
+            enemyLasers = [];
+            hearts = [];
+            answerBoxes = [];
+            floatingTexts = [];
+            questionActive = false;
+            
+            // Récupérer le temps de conjugaison choisi
+            selectedTense = document.getElementById('difficulty').value;
+
+            gameTimeLeft = gameTimeTotal;
+            timerBar.style.width = '100%';
+            timerContainer.classList.remove('hidden');
+            if(timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                gameTimeLeft--;
+                const pct = (gameTimeLeft / gameTimeTotal) * 100;
+                timerBar.style.width = pct + '%';
+                if (gameTimeLeft <= 0) endGame("TEMPS ÉCOULÉ");
+            }, 1000);
+
+            updateLivesUI();
+            
+            gameState = 'PLAYING';
+            overlay.classList.add('hidden');
+            questionDisplay.classList.remove('hidden');
+            touchControls.classList.remove('hidden');
+
+            generateQuestion();
+            spawnMeteor();
+            spawnEnemy();
+            spawnHeart();
+        }
+
+        function endGame(reason) {
+            gameState = 'GAMEOVER';
+            if(timerInterval) clearInterval(timerInterval);
+            document.getElementById('overlay-title').innerHTML = reason ? reason : "MISSION<br>TERMINÉE";
+            document.getElementById('overlay-msg').innerHTML = `Score final : <b>${score}</b><br>Excellent entraînement !`;
+            document.getElementById('start-btn').textContent = "REJOUER";
+            overlay.classList.remove('hidden');
+            questionDisplay.classList.add('hidden');
+            touchControls.classList.add('hidden');
+            timerContainer.classList.add('hidden');
+        }
+
+        document.getElementById('start-btn').onclick = startGame;
+        resize();
+        draw(); 
+
+    </script>
+</body>
+</html>
